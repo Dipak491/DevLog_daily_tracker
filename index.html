@@ -19,7 +19,8 @@
     --teal: #2dd4bf; --teal-bg: rgba(45,212,191,0.1);
     --radius: 12px; --radius-sm: 8px; --radius-xs: 5px;
   }
-  body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; overflow: hidden; }
+  body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; overflow: auto; }
+  .main { overflow: hidden; }
 
   /* SIDEBAR */
   .sidebar { width: 260px; min-height: 100vh; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px 0; flex-shrink: 0; }
@@ -796,14 +797,15 @@ async function setPassword() {
   const pw = document.getElementById('newPwInput').value.trim();
   const errEl = document.getElementById('setPwError');
   errEl.textContent = '';
-  if (pw.length < 4) { errEl.textContent = 'Password must be at least 4 characters'; return; }
+  if (pw.length < 4) { errEl.textContent = 'Minimum 4 characters required'; return; }
   const hash = await hashPassword(pw);
   localStorage.setItem(LS_PW_HASH, hash);
   document.getElementById('newPwInput').value = '';
-  // Immediately unlock since they just set it
   sessionStorage.setItem(LS_UNLOCKED, '1');
-  document.getElementById('lockScreen').style.display = 'none';
-  showToast('Password set — app is now protected ✓');
+  const ls = document.getElementById('lockScreen');
+  ls.style.opacity = '0'; ls.style.transition = 'opacity 0.3s';
+  setTimeout(() => { ls.style.display = 'none'; ls.style.opacity = ''; ls.style.transition = ''; }, 300);
+  showToast('Password set — app is now protected 🔒');
 }
 
 async function unlockApp() {
@@ -867,14 +869,35 @@ function toggleLockEye() {
 function initLockScreen() {
   const hasPw = !!getStoredHash();
   const isUnlocked = sessionStorage.getItem(LS_UNLOCKED) === '1';
-  if (hasPw && !isUnlocked) {
-    document.getElementById('lockScreen').style.display = 'flex';
-    // Hide set-password section if password already exists
+
+  if (isUnlocked) {
+    // Already unlocked this session — go straight in
+    document.getElementById('lockScreen').style.display = 'none';
+    return;
+  }
+
+  // Always show lock screen — either to enter password or to set one for first time
+  document.getElementById('lockScreen').style.display = 'flex';
+
+  if (hasPw) {
+    // Password exists — show only the unlock form, hide set-password section
     document.querySelector('.lock-divider').style.display = 'none';
     document.querySelector('.lock-set-wrap').style.display = 'none';
-    setTimeout(() => document.getElementById('lockInput').focus(), 100);
+    document.getElementById('lockInput').style.display = '';
+    document.getElementById('lockEye').style.display = '';
+    document.querySelector('.lock-btn').style.display = '';
+    setTimeout(() => document.getElementById('lockInput').focus(), 150);
   } else {
-    document.getElementById('lockScreen').style.display = 'none';
+    // No password yet — show ONLY the set-password section, hide unlock form
+    document.getElementById('lockInput').style.display = 'none';
+    document.getElementById('lockEye').style.display = 'none';
+    document.querySelector('.lock-btn').style.display = 'none';
+    document.getElementById('lockError').style.display = 'none';
+    document.getElementById('lockAttempts').style.display = 'none';
+    // Update heading to guide first-time user
+    document.querySelector('.lock-card h2').textContent = 'Welcome to DevLog';
+    document.querySelector('.lock-card p').textContent = 'Set a password to protect your work tracker. You\'ll need it every time you open the app.';
+    setTimeout(() => document.getElementById('newPwInput').focus(), 150);
   }
 }
 
